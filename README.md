@@ -1,5 +1,4 @@
-
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -220,7 +219,7 @@
         try {
             config = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         } catch(e) {
-            console.warn("Firebase config check needed for live site.");
+            console.warn("Firebase config needs to be manually set for a live site.");
         }
 
         const app = config.apiKey ? initializeApp(config) : null;
@@ -229,9 +228,10 @@
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-app';
 
         let user = null;
-        let profile = null;
+        let profile = { grade: localStorage.getItem('sp_grade') || '', isPro: false };
+        let history = JSON.parse(localStorage.getItem('sp_history') || '[]');
         let images = [];
-        const apiKey = ""; 
+        const apiKey = ""; // Set your Gemini API key here for live hosting
 
         // Toast Helper
         const showError = (msg) => {
@@ -241,17 +241,25 @@
             setTimeout(() => toast.style.display = 'none', 5000);
         };
 
-        if (auth) {
-            onAuthStateChanged(auth, async (u) => {
-                if (u) {
-                    user = u;
-                    await syncProfile();
-                    loadHistory();
-                } else {
-                    signInAnonymously(auth);
-                }
-            });
-        }
+        // --- Core Startup ---
+        window.onload = () => {
+            if (auth) {
+                onAuthStateChanged(auth, async (u) => {
+                    if (u) {
+                        user = u;
+                        await syncProfile();
+                        loadHistory();
+                    } else {
+                        signInAnonymously(auth);
+                    }
+                });
+            } else {
+                // If no Firebase, we still allow UI interaction via localStorage
+                updateUIPrefs();
+                renderHistoryUI();
+                if (!profile.grade) showSetup();
+            }
+        };
 
         async function syncProfile() {
             if (!db || !user) return;
@@ -259,12 +267,13 @@
             const snap = await getDoc(pRef);
             if (snap.exists()) {
                 profile = snap.data();
+                localStorage.setItem('sp_grade', profile.grade);
                 if (!profile.grade) showSetup();
                 else updateUIPrefs();
             } else {
-                profile = { grade: '', isPro: false };
+                profile = { grade: localStorage.getItem('sp_grade') || '', isPro: false };
                 await setDoc(pRef, profile);
-                showSetup();
+                if (!profile.grade) showSetup();
             }
         }
 
@@ -276,6 +285,7 @@
 
         window.saveGrade = async (g) => {
             profile.grade = g;
+            localStorage.setItem('sp_grade', g);
             if (db && user) {
                 await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'settings'), { grade: g });
             }
@@ -285,7 +295,7 @@
 
         function updateUIPrefs() {
             const gradeElements = document.querySelectorAll('#grade-display-sidebar, #profile-grade-display');
-            gradeElements.forEach(el => el.innerText = profile.grade);
+            gradeElements.forEach(el => el.innerText = profile.grade || 'Not Set');
         }
 
         window.switchView = (view) => {
@@ -303,25 +313,32 @@
         window.toggleTheme = () => document.body.classList.toggle('dark');
 
         function loadHistory() {
-            if (!db || !user) return;
+            if (!db || !user) {
+                renderHistoryUI();
+                return;
+            }
             const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
             onSnapshot(colRef, (snap) => {
-                const grid = document.getElementById('history-grid');
-                grid.innerHTML = snap.docs.length ? snap.docs.map(d => {
-                    const item = d.data();
-                    return `<div onclick="openItem('${d.id}')" class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-indigo-500/50 transition-all">
-                        <div class="p-3 bg-indigo-500/10 text-indigo-500 w-fit rounded-2xl mb-4"><i class="fas fa-file-alt"></i></div>
-                        <h4 class="font-bold line-clamp-1">${item.title}</h4>
-                        <p class="text-[10px] font-black uppercase text-indigo-500 mt-2">${item.type} • ${item.grade}</p>
-                    </div>`;
-                }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>Your Library is empty. Click 'New Session' to start.</p></div>`;
+                history = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                localStorage.setItem('sp_history', JSON.stringify(history));
+                renderHistoryUI();
             });
         }
 
-        window.openItem = async (id) => {
-            if (!db || !user) return;
-            const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id));
-            const item = snap.data();
+        function renderHistoryUI() {
+            const grid = document.getElementById('history-grid');
+            grid.innerHTML = history.length ? history.map(item => {
+                return `<div onclick="openItemById('${item.id || item.timestamp}')" class="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-indigo-500/50 transition-all">
+                    <div class="p-3 bg-indigo-500/10 text-indigo-500 w-fit rounded-2xl mb-4"><i class="fas fa-file-alt"></i></div>
+                    <h4 class="font-bold line-clamp-1">${item.title}</h4>
+                    <p class="text-[10px] font-black uppercase text-indigo-500 mt-2">${item.type} • ${item.grade}</p>
+                </div>`;
+            }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>Your Library is empty. Click 'New Session' to start.</p></div>`;
+        }
+
+        window.openItemById = (id) => {
+            const item = history.find(h => (h.id === id || h.timestamp?.toString() === id));
+            if (!item) return;
             switchView('viewer');
             
             const viewerContent = document.getElementById('viewer-content');
@@ -343,13 +360,18 @@
             const diff = document.getElementById('difficulty').value;
             
             if(!textIn && images.length === 0) {
-                showError("Please enter notes or a prompt.");
+                showError("Asseblief voer notas of 'n opdrag in.");
                 return;
             }
             
             document.getElementById('loader').classList.remove('hidden');
             
             try {
+                // Ensure Gemini Key is set or warn
+                if (!apiKey && typeof __firebase_config === 'undefined') {
+                    throw new Error("AI Key missing. Please set your apiKey in the script for live hosting.");
+                }
+
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -357,7 +379,7 @@
                         contents: [{
                             role: "user", 
                             parts: [
-                                {text: `Grade Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language for ${profile.grade}. Detect if input is in Afrikaans or English and reply in that language. ALWAYS use clear headings and descriptive text.`},
+                                {text: `Education Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language for ${profile.grade}. Detect if input is in Afrikaans or English and reply in that language. ALWAYS use clear headings and descriptive text.`},
                                 ...images.map(img => ({inlineData: {mimeType: "image/png", data: img.split(',')[1]}}))
                             ]
                         }],
@@ -366,19 +388,29 @@
                 });
                 
                 const data = await response.json();
-                if (!data.candidates || !data.candidates[0].content) throw new Error("AI failed. Try a simpler prompt.");
+                if (!data.candidates || !data.candidates[0].content) throw new Error("AI engine failed. Try a simpler prompt.");
 
                 const aiResponse = data.candidates[0].content.parts[0].text;
                 const aiTitle = aiResponse.split('\n')[0].replace('#', '').trim() || 'New Study Session';
                 
+                const newItem = {
+                    title: aiTitle,
+                    content: aiResponse,
+                    type: tool,
+                    grade: profile.grade,
+                    timestamp: Date.now()
+                };
+
                 if (db && user) {
                     await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), {
-                        title: aiTitle,
-                        content: aiResponse,
-                        type: tool,
-                        grade: profile.grade,
+                        ...newItem,
                         createdAt: serverTimestamp()
                     });
+                } else {
+                    // Local fallback
+                    history.push(newItem);
+                    localStorage.setItem('sp_history', JSON.stringify(history));
+                    renderHistoryUI();
                 }
                 
                 document.getElementById('input-text').value = '';
@@ -386,7 +418,7 @@
                 document.getElementById('image-previews').querySelectorAll('div').forEach(el => el.remove());
                 switchView('home');
             } catch (e) {
-                showError("Failed to connect to AI Hub.");
+                showError(e.message || "Fout met AI konneksie.");
             } finally {
                 document.getElementById('loader').classList.add('hidden');
             }
@@ -406,12 +438,18 @@
             });
         };
         
+        // Export to Global for HTML onclick events
         window.switchView = switchView;
         window.toggleTheme = toggleTheme;
         window.saveGrade = saveGrade;
         window.showSetup = showSetup;
-        window.openItem = openItem;
-        window.signOutApp = () => auth ? signOut(auth).then(() => location.reload()) : location.reload();
+        window.openItemById = openItemById;
+        window.signOutApp = () => {
+            localStorage.clear();
+            if (auth) signOut(auth).then(() => location.reload());
+            else location.reload();
+        };
     </script>
 </body>
 </html>
+
