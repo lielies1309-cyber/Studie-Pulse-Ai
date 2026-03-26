@@ -18,11 +18,11 @@
         
         .dark { background-color: #020617; color: #f8fafc; }
 
-        /* High-Visibility Viewer Content - Fixes invisible text issues */
+        /* High-Visibility Viewer Content - Ensuring text is always readable */
         #viewer-content { color: inherit; }
         #viewer-content h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; color: #4f46e5; display: block; }
         #viewer-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #6366f1; border-bottom: 2px solid #cbd5e1; padding-bottom: 0.5rem; display: block; }
-        #viewer-content p { margin-bottom: 1.25rem; line-height: 1.8; font-size: 1.15rem; display: block; }
+        #viewer-content p { margin-bottom: 1.25rem; line-height: 1.8; font-size: 1.15rem; display: block; color: inherit; }
         #viewer-content li { margin-bottom: 0.5rem; list-style-type: disc; margin-left: 1.5rem; color: inherit; }
         .dark #viewer-content h2 { border-color: #334155; }
 
@@ -34,19 +34,22 @@
 
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+
+        #setup-modal { backdrop-filter: blur(8px); }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark">
 
     <div id="app" class="min-h-screen flex flex-col">
         
-        <!-- Grade Selection Modal -->
-        <div id="setup-modal" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-6 hidden">
-            <div class="max-w-2xl w-full text-center space-y-8">
+        <!-- Grade Selection Modal (Onboarding) -->
+        <div id="setup-modal" class="fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-6 hidden">
+            <div class="max-w-2xl w-full text-center space-y-8 bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 shadow-2xl">
                 <div class="w-20 h-20 bg-indigo-600 rounded-3xl mx-auto flex items-center justify-center shadow-2xl">
-                    <i class="fas fa-bolt text-3xl text-white"></i>
+                    <i class="fas fa-graduation-cap text-3xl text-white"></i>
                 </div>
-                <h1 class="text-4xl font-black text-white">Choose Your Grade</h1>
+                <h1 class="text-4xl font-black text-white">Choose Your Level</h1>
+                <p class="text-slate-400">Personalized study material based on your exact grade.</p>
                 <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="grade-grid"></div>
             </div>
         </div>
@@ -58,7 +61,7 @@
                 <span class="font-black text-xl tracking-tighter text-slate-900 dark:text-white">StudiePulse <span class="text-indigo-500">AI</span></span>
             </div>
             <div class="flex items-center gap-4">
-                <button onclick="toggleTheme()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+                <button onclick="toggleTheme()" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
                     <i class="fas fa-moon dark:hidden"></i><i class="fas fa-sun hidden dark:block"></i>
                 </button>
             </div>
@@ -77,6 +80,11 @@
                 <button onclick="switchView('profile')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm" data-view="profile">
                     <i class="fas fa-user-circle w-5"></i> My Profile
                 </button>
+
+                <div class="mt-auto p-5 rounded-3xl bg-indigo-600/5 border border-indigo-500/10">
+                    <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-1">Status</p>
+                    <p id="grade-display-sidebar" class="font-bold text-sm">Detecting...</p>
+                </div>
             </aside>
 
             <!-- Main Screens -->
@@ -84,15 +92,21 @@
                 
                 <!-- History Library -->
                 <div id="view-home" class="view space-y-8">
-                    <h2 class="text-4xl font-black">My Library</h2>
+                    <div>
+                        <h2 class="text-4xl font-black">My Library</h2>
+                        <p class="opacity-50">Saved summaries and tests</p>
+                    </div>
                     <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
                 </div>
 
                 <!-- Create Section -->
                 <div id="view-create" class="view hidden space-y-8 max-w-5xl mx-auto">
-                    <h2 class="text-4xl font-black">New Session</h2>
+                    <div>
+                        <h2 class="text-4xl font-black">New Session</h2>
+                        <p class="opacity-50">Create study material in Afrikaans or English</p>
+                    </div>
                     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 shadow-sm space-y-6">
-                        <textarea id="input-text" placeholder="Paste your notes or study prompt here..." class="w-full h-64 bg-transparent outline-none resize-none text-lg placeholder:opacity-40 text-slate-900 dark:text-white p-2"></textarea>
+                        <textarea id="input-text" placeholder="Paste your notes or a prompt here..." class="w-full h-64 bg-transparent outline-none resize-none text-lg placeholder:opacity-30 text-slate-900 dark:text-white p-2"></textarea>
                         
                         <div class="flex flex-wrap gap-4" id="image-previews">
                             <button onclick="document.getElementById('file-input').click()" class="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-indigo-500 hover:border-indigo-500 transition-all">
@@ -104,7 +118,7 @@
                         <div class="grid grid-cols-2 gap-4">
                             <div class="flex flex-col gap-2">
                                 <label class="text-[10px] font-black uppercase opacity-40 px-1">Tool Type</label>
-                                <select id="tool-type" class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white outline-none">
+                                <select id="tool-type" class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white outline-none cursor-pointer">
                                     <option value="summary">Summary</option>
                                     <option value="test">Practice Test</option>
                                     <option value="notes">Detailed Notes</option>
@@ -113,14 +127,14 @@
                             </div>
                             <div class="flex flex-col gap-2">
                                 <label class="text-[10px] font-black uppercase opacity-40 px-1">Difficulty</label>
-                                <select id="difficulty" class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white outline-none">
+                                <select id="difficulty" class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white outline-none cursor-pointer">
                                     <option value="Easy">Easy</option>
                                     <option value="Medium" selected>Medium</option>
                                     <option value="Hard">Hard</option>
                                 </select>
                             </div>
                         </div>
-                        <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-[2rem] font-black text-white text-xl shadow-xl transition-all">
+                        <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-[2.5rem] font-black text-white text-xl shadow-xl transition-all active:scale-95">
                             GENERATE NOW
                         </button>
                     </div>
@@ -128,26 +142,27 @@
 
                 <!-- Viewer -->
                 <div id="view-viewer" class="view hidden space-y-8 max-w-4xl mx-auto">
-                    <button onclick="switchView('home')" class="font-bold opacity-50 hover:opacity-100 text-slate-900 dark:text-white"><i class="fas fa-chevron-left mr-2"></i> Library</button>
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[3rem] p-10 lg:p-16 shadow-2xl">
+                    <button onclick="switchView('home')" class="font-bold opacity-50 hover:opacity-100 text-slate-900 dark:text-white transition-opacity"><i class="fas fa-chevron-left mr-2"></i> Library</button>
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[3rem] p-10 lg:p-16 shadow-2xl min-h-[400px]">
                         <div id="viewer-content" class="text-slate-900 dark:text-slate-100">
-                            <!-- AI Words appear here -->
+                            <!-- AI Content -->
                         </div>
                     </div>
                 </div>
 
                 <!-- Profile -->
                 <div id="view-profile" class="view hidden max-w-xl mx-auto space-y-8">
-                    <h2 class="text-4xl font-black text-center">Profile</h2>
+                    <h2 class="text-4xl font-black text-center">My Profile</h2>
                     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 space-y-6">
                         <div class="flex items-center gap-4 pb-6 border-b dark:border-slate-800">
                             <div class="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center text-white text-2xl"><i class="fas fa-user-graduate"></i></div>
                             <div>
                                 <h3 id="profile-grade-display" class="text-xl font-bold">Grade --</h3>
-                                <p class="text-xs font-black uppercase text-indigo-500 tracking-widest">Active User</p>
+                                <p class="text-xs font-black uppercase text-indigo-500 tracking-widest">Active Student</p>
                             </div>
                         </div>
                         <button onclick="showSetup()" class="w-full py-4 rounded-2xl border-2 border-indigo-600/20 text-indigo-500 font-bold hover:bg-indigo-600/5 transition-all">Change Grade Level</button>
+                        <button onclick="signOutApp()" class="w-full py-4 rounded-2xl bg-red-500/5 text-red-500 font-bold hover:bg-red-500/10 transition-all">Sign Out</button>
                     </div>
                 </div>
 
@@ -164,14 +179,14 @@
         <!-- Loader Overlay -->
         <div id="loader" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center flex-col gap-6 hidden">
             <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-indigo-500 font-black uppercase tracking-widest text-xs">AI is Pulsing...</p>
+            <p class="text-indigo-500 font-black uppercase tracking-widest text-xs">Generating...</p>
         </div>
     </div>
 
-    <!-- Firebase -->
+    <!-- Firebase SDK Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University"];
@@ -179,7 +194,7 @@
         const app = initializeApp(config);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-ai';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-free';
 
         let user = null;
         let profile = null;
@@ -224,7 +239,7 @@
         };
 
         function updateUIPrefs() {
-            const gradeElements = document.querySelectorAll('#grade-display, #profile-grade-display');
+            const gradeElements = document.querySelectorAll('#grade-display-sidebar, #profile-grade-display');
             gradeElements.forEach(el => el.innerText = profile.grade);
         }
 
@@ -241,7 +256,8 @@
         window.toggleTheme = () => document.body.classList.toggle('dark');
 
         function loadHistory() {
-            onSnapshot(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), (snap) => {
+            const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+            onSnapshot(colRef, (snap) => {
                 const grid = document.getElementById('history-grid');
                 grid.innerHTML = snap.docs.length ? snap.docs.map(d => {
                     const item = d.data();
@@ -250,7 +266,7 @@
                         <h4 class="font-bold line-clamp-1">${item.title}</h4>
                         <p class="text-[10px] font-black uppercase text-indigo-500 mt-2">${item.type} • ${item.grade}</p>
                     </div>`;
-                }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>No study history.</p></div>`;
+                }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>Your Library is empty.</p></div>`;
             });
         }
 
@@ -260,12 +276,13 @@
             switchView('viewer');
             
             const viewerContent = document.getElementById('viewer-content');
-            viewerContent.innerHTML = `<h1>${item.title}</h1>` + item.content.split('\n').map(line => {
-                if (line.trim().startsWith('# ')) return ''; 
-                if (line.trim().startsWith('## ')) return `<h2>${line.replace('## ', '')}</h2>`;
-                if (line.trim().startsWith('- ')) return `<li>${line.replace('- ', '')}</li>`;
-                if (line.trim() === '') return '';
-                return `<p>${line}</p>`;
+            viewerContent.innerHTML = `<h1 class="text-3xl font-black mb-6">${item.title}</h1>` + item.content.split('\n').map(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('# ')) return ''; 
+                if (trimmed.startsWith('## ')) return `<h2>${trimmed.replace('## ', '')}</h2>`;
+                if (trimmed.startsWith('- ')) return `<li>${trimmed.replace('- ', '')}</li>`;
+                if (trimmed === '') return '<div class="h-4"></div>';
+                return `<p>${trimmed}</p>`;
             }).join('');
         };
 
@@ -274,7 +291,7 @@
             const tool = document.getElementById('tool-type').value;
             const diff = document.getElementById('difficulty').value;
             
-            if(!textIn && images.length === 0) return alert("Enter notes or a prompt!");
+            if(!textIn && images.length === 0) return;
             
             document.getElementById('loader').classList.remove('hidden');
             
@@ -286,21 +303,21 @@
                         contents: [{
                             role: "user", 
                             parts: [
-                                {text: `Grade: ${profile.grade}. Task: Create a ${tool}. Difficulty: ${diff}. Prompt/Context: ${textIn}`},
+                                {text: `Grade Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language appropriate for ${profile.grade}. Detect if the input is in Afrikaans or English and reply in that same language.`},
                                 ...images.map(img => ({inlineData: {mimeType: "image/png", data: img.split(',')[1]}}))
                             ]
                         }],
-                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Output structured study material with descriptive words and headers. Use clean Markdown."}]}
+                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Generate professional, well-structured study material. Start with a Title using #. Ensure text is clearly formatted."}]}
                     })
                 });
                 
                 const data = await response.json();
-                const aiText = data.candidates[0].content.parts[0].text;
-                const aiTitle = aiText.split('\n')[0].replace('#', '').trim() || 'Study Session';
+                const aiResponse = data.candidates[0].content.parts[0].text;
+                const aiTitle = aiResponse.split('\n')[0].replace('#', '').trim() || 'New Study Session';
                 
                 await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), {
                     title: aiTitle,
-                    content: aiText,
+                    content: aiResponse,
                     type: tool,
                     grade: profile.grade,
                     createdAt: serverTimestamp()
@@ -311,7 +328,7 @@
                 document.getElementById('image-previews').querySelectorAll('div').forEach(el => el.remove());
                 switchView('home');
             } catch (e) {
-                alert("AI Connection Error.");
+                console.error(e);
             } finally {
                 document.getElementById('loader').classList.add('hidden');
             }
@@ -336,6 +353,7 @@
         window.saveGrade = saveGrade;
         window.showSetup = showSetup;
         window.openItem = openItem;
+        window.signOutApp = () => signOut(auth).then(() => location.reload());
     </script>
 </body>
-</html># Studie-Pulse-Ai
+</html>
