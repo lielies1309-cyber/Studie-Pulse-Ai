@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -212,25 +213,25 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global Placeholders for manual hosting
+        // Constants
         const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University"];
         
         let config = {};
         try {
             config = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         } catch(e) {
-            console.warn("No Firebase config found. Please set your credentials.");
+            console.warn("Firebase config check needed for live site.");
         }
 
         const app = config.apiKey ? initializeApp(config) : null;
         const auth = app ? getAuth(app) : null;
         const db = app ? getFirestore(app) : null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-free';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-app';
 
         let user = null;
         let profile = null;
         let images = [];
-        const apiKey = ""; // Environment provided or manual key
+        const apiKey = ""; 
 
         // Toast Helper
         const showError = (msg) => {
@@ -250,8 +251,6 @@
                     signInAnonymously(auth);
                 }
             });
-        } else {
-            showError("Firebase not configured. Please check your website setup.");
         }
 
         async function syncProfile() {
@@ -326,21 +325,15 @@
             switchView('viewer');
             
             const viewerContent = document.getElementById('viewer-content');
-            
-            // Basic Markdown-to-HTML parser (handles bolding, headers, lists)
             const html = item.content.split('\n').map(line => {
                 let text = line.trim();
                 if (text.startsWith('# ')) return `<h1>${text.replace('# ', '')}</h1>`;
                 if (text.startsWith('## ')) return `<h2>${text.replace('## ', '')}</h2>`;
                 if (text.startsWith('- ')) return `<li>${text.replace('- ', '')}</li>`;
                 if (text === '') return '<div class="h-4"></div>';
-                
-                // Bold text parser for **words**
                 text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                
                 return `<p>${text}</p>`;
             }).join('');
-
             viewerContent.innerHTML = html;
         };
 
@@ -350,7 +343,7 @@
             const diff = document.getElementById('difficulty').value;
             
             if(!textIn && images.length === 0) {
-                showError("Please enter some text or add a photo first.");
+                showError("Please enter notes or a prompt.");
                 return;
             }
             
@@ -364,19 +357,16 @@
                         contents: [{
                             role: "user", 
                             parts: [
-                                {text: `Education Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language for ${profile.grade}. Detect if input is in Afrikaans or English and reply in that language. ALWAYS use clear headings and descriptive text.`},
+                                {text: `Grade Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language for ${profile.grade}. Detect if input is in Afrikaans or English and reply in that language. ALWAYS use clear headings and descriptive text.`},
                                 ...images.map(img => ({inlineData: {mimeType: "image/png", data: img.split(',')[1]}}))
                             ]
                         }],
-                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Generate professional, visible, and well-structured study material. Start with a Title using #. Use **bold** for key terms."}]}
+                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Start with a Title using #. Use **bold** for key terms."}]}
                     })
                 });
                 
                 const data = await response.json();
-                
-                if (!data.candidates || !data.candidates[0].content) {
-                    throw new Error("AI could not generate a response. Try a simpler prompt.");
-                }
+                if (!data.candidates || !data.candidates[0].content) throw new Error("AI failed. Try a simpler prompt.");
 
                 const aiResponse = data.candidates[0].content.parts[0].text;
                 const aiTitle = aiResponse.split('\n')[0].replace('#', '').trim() || 'New Study Session';
@@ -396,8 +386,7 @@
                 document.getElementById('image-previews').querySelectorAll('div').forEach(el => el.remove());
                 switchView('home');
             } catch (e) {
-                console.error(e);
-                showError(e.message || "Failed to connect to AI Hub.");
+                showError("Failed to connect to AI Hub.");
             } finally {
                 document.getElementById('loader').classList.add('hidden');
             }
