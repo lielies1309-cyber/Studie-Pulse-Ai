@@ -18,13 +18,17 @@
         
         .dark { background-color: #020617; color: #f8fafc; }
 
-        /* High-Visibility Viewer Content - Ensuring text is always readable */
+        /* High-Visibility Viewer Content - Fixes invisible text and formatting */
         #viewer-content { color: inherit; }
         #viewer-content h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; color: #4f46e5; display: block; }
         #viewer-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #6366f1; border-bottom: 2px solid #cbd5e1; padding-bottom: 0.5rem; display: block; }
         #viewer-content p { margin-bottom: 1.25rem; line-height: 1.8; font-size: 1.15rem; display: block; color: inherit; }
-        #viewer-content li { margin-bottom: 0.5rem; list-style-type: disc; margin-left: 1.5rem; color: inherit; }
+        #viewer-content ul { margin-bottom: 1.5rem; }
+        #viewer-content li { margin-bottom: 0.75rem; list-style-type: disc; margin-left: 1.5rem; color: inherit; line-height: 1.6; }
+        #viewer-content b, #viewer-content strong { color: #4f46e5; font-weight: 700; }
+        
         .dark #viewer-content h2 { border-color: #334155; }
+        .dark #viewer-content b, .dark #viewer-content strong { color: #818cf8; }
 
         .active-nav { 
             background: var(--primary); 
@@ -36,12 +40,31 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
 
         #setup-modal { backdrop-filter: blur(8px); }
+
+        /* Error Toast */
+        #error-toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #ef4444;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark">
 
     <div id="app" class="min-h-screen flex flex-col">
         
+        <!-- Error Display -->
+        <div id="error-toast"></div>
+
         <!-- Grade Selection Modal (Onboarding) -->
         <div id="setup-modal" class="fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-6 hidden">
             <div class="max-w-2xl w-full text-center space-y-8 bg-slate-900 p-10 rounded-[2.5rem] border border-slate-800 shadow-2xl">
@@ -73,11 +96,11 @@
                 <button onclick="switchView('home')" class="nav-item active-nav flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm" data-view="home">
                     <i class="fas fa-history w-5"></i> Library
                 </button>
-                <button onclick="switchView('create')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm" data-view="create">
+                <button onclick="switchView('create')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-900 transition-all" data-view="create">
                     <i class="fas fa-plus-circle w-5"></i> New Session
                 </button>
                 <div class="pt-8 pb-2 px-4 text-[10px] font-black opacity-30 uppercase tracking-widest">Settings</div>
-                <button onclick="switchView('profile')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm" data-view="profile">
+                <button onclick="switchView('profile')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-900 transition-all" data-view="profile">
                     <i class="fas fa-user-circle w-5"></i> My Profile
                 </button>
 
@@ -106,7 +129,7 @@
                         <p class="opacity-50">Create study material in Afrikaans or English</p>
                     </div>
                     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-8 shadow-sm space-y-6">
-                        <textarea id="input-text" placeholder="Paste your notes or a prompt here..." class="w-full h-64 bg-transparent outline-none resize-none text-lg placeholder:opacity-30 text-slate-900 dark:text-white p-2"></textarea>
+                        <textarea id="input-text" placeholder="Paste your notes or a prompt here..." class="w-full h-64 bg-transparent outline-none resize-none text-lg placeholder:opacity-30 text-slate-900 dark:text-white p-2 font-medium"></textarea>
                         
                         <div class="flex flex-wrap gap-4" id="image-previews">
                             <button onclick="document.getElementById('file-input').click()" class="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-indigo-500 hover:border-indigo-500 transition-all">
@@ -179,7 +202,7 @@
         <!-- Loader Overlay -->
         <div id="loader" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center flex-col gap-6 hidden">
             <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-            <p class="text-indigo-500 font-black uppercase tracking-widest text-xs">Generating...</p>
+            <p class="text-indigo-500 font-black uppercase tracking-widest text-xs">Generating Words...</p>
         </div>
     </div>
 
@@ -189,29 +212,50 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDoc, addDoc, onSnapshot, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Global Placeholders for manual hosting
         const GRADES = ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10", "Grade 11", "Grade 12", "University"];
-        const config = JSON.parse(__firebase_config);
-        const app = initializeApp(config);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        
+        let config = {};
+        try {
+            config = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        } catch(e) {
+            console.warn("No Firebase config found. Please set your credentials.");
+        }
+
+        const app = config.apiKey ? initializeApp(config) : null;
+        const auth = app ? getAuth(app) : null;
+        const db = app ? getFirestore(app) : null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'studiepulse-free';
 
         let user = null;
         let profile = null;
         let images = [];
-        const apiKey = ""; 
+        const apiKey = ""; // Environment provided or manual key
 
-        onAuthStateChanged(auth, async (u) => {
-            if (u) {
-                user = u;
-                await syncProfile();
-                loadHistory();
-            } else {
-                signInAnonymously(auth);
-            }
-        });
+        // Toast Helper
+        const showError = (msg) => {
+            const toast = document.getElementById('error-toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 5000);
+        };
+
+        if (auth) {
+            onAuthStateChanged(auth, async (u) => {
+                if (u) {
+                    user = u;
+                    await syncProfile();
+                    loadHistory();
+                } else {
+                    signInAnonymously(auth);
+                }
+            });
+        } else {
+            showError("Firebase not configured. Please check your website setup.");
+        }
 
         async function syncProfile() {
+            if (!db || !user) return;
             const pRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'settings');
             const snap = await getDoc(pRef);
             if (snap.exists()) {
@@ -233,7 +277,9 @@
 
         window.saveGrade = async (g) => {
             profile.grade = g;
-            await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'settings'), { grade: g });
+            if (db && user) {
+                await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'settings'), { grade: g });
+            }
             document.getElementById('setup-modal').classList.add('hidden');
             updateUIPrefs();
         };
@@ -245,7 +291,9 @@
 
         window.switchView = (view) => {
             document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-            document.getElementById(`view-${view}`).classList.remove('hidden');
+            const target = document.getElementById(`view-${view}`);
+            if (target) target.classList.remove('hidden');
+            
             document.querySelectorAll('.nav-item').forEach(n => {
                 if (n.dataset.view === view) n.classList.add('active-nav');
                 else n.classList.remove('active-nav');
@@ -256,6 +304,7 @@
         window.toggleTheme = () => document.body.classList.toggle('dark');
 
         function loadHistory() {
+            if (!db || !user) return;
             const colRef = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
             onSnapshot(colRef, (snap) => {
                 const grid = document.getElementById('history-grid');
@@ -266,24 +315,33 @@
                         <h4 class="font-bold line-clamp-1">${item.title}</h4>
                         <p class="text-[10px] font-black uppercase text-indigo-500 mt-2">${item.type} • ${item.grade}</p>
                     </div>`;
-                }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>Your Library is empty.</p></div>`;
+                }).join('') : `<div class="col-span-full py-20 text-center opacity-30"><p>Your Library is empty. Click 'New Session' to start.</p></div>`;
             });
         }
 
         window.openItem = async (id) => {
+            if (!db || !user) return;
             const snap = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'history', id));
             const item = snap.data();
             switchView('viewer');
             
             const viewerContent = document.getElementById('viewer-content');
-            viewerContent.innerHTML = `<h1 class="text-3xl font-black mb-6">${item.title}</h1>` + item.content.split('\n').map(line => {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('# ')) return ''; 
-                if (trimmed.startsWith('## ')) return `<h2>${trimmed.replace('## ', '')}</h2>`;
-                if (trimmed.startsWith('- ')) return `<li>${trimmed.replace('- ', '')}</li>`;
-                if (trimmed === '') return '<div class="h-4"></div>';
-                return `<p>${trimmed}</p>`;
+            
+            // Basic Markdown-to-HTML parser (handles bolding, headers, lists)
+            const html = item.content.split('\n').map(line => {
+                let text = line.trim();
+                if (text.startsWith('# ')) return `<h1>${text.replace('# ', '')}</h1>`;
+                if (text.startsWith('## ')) return `<h2>${text.replace('## ', '')}</h2>`;
+                if (text.startsWith('- ')) return `<li>${text.replace('- ', '')}</li>`;
+                if (text === '') return '<div class="h-4"></div>';
+                
+                // Bold text parser for **words**
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                return `<p>${text}</p>`;
             }).join('');
+
+            viewerContent.innerHTML = html;
         };
 
         document.getElementById('generate-btn').onclick = async () => {
@@ -291,7 +349,10 @@
             const tool = document.getElementById('tool-type').value;
             const diff = document.getElementById('difficulty').value;
             
-            if(!textIn && images.length === 0) return;
+            if(!textIn && images.length === 0) {
+                showError("Please enter some text or add a photo first.");
+                return;
+            }
             
             document.getElementById('loader').classList.remove('hidden');
             
@@ -303,25 +364,32 @@
                         contents: [{
                             role: "user", 
                             parts: [
-                                {text: `Grade Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language appropriate for ${profile.grade}. Detect if the input is in Afrikaans or English and reply in that same language.`},
+                                {text: `Education Level: ${profile.grade}. Task: Create a high-quality ${tool}. Difficulty: ${diff}. Subject Input: ${textIn}. Instructions: Use student-friendly language for ${profile.grade}. Detect if input is in Afrikaans or English and reply in that language. ALWAYS use clear headings and descriptive text.`},
                                 ...images.map(img => ({inlineData: {mimeType: "image/png", data: img.split(',')[1]}}))
                             ]
                         }],
-                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Generate professional, well-structured study material. Start with a Title using #. Ensure text is clearly formatted."}]}
+                        systemInstruction: {parts: [{text: "You are StudiePulse AI. Generate professional, visible, and well-structured study material. Start with a Title using #. Use **bold** for key terms."}]}
                     })
                 });
                 
                 const data = await response.json();
+                
+                if (!data.candidates || !data.candidates[0].content) {
+                    throw new Error("AI could not generate a response. Try a simpler prompt.");
+                }
+
                 const aiResponse = data.candidates[0].content.parts[0].text;
                 const aiTitle = aiResponse.split('\n')[0].replace('#', '').trim() || 'New Study Session';
                 
-                await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), {
-                    title: aiTitle,
-                    content: aiResponse,
-                    type: tool,
-                    grade: profile.grade,
-                    createdAt: serverTimestamp()
-                });
+                if (db && user) {
+                    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), {
+                        title: aiTitle,
+                        content: aiResponse,
+                        type: tool,
+                        grade: profile.grade,
+                        createdAt: serverTimestamp()
+                    });
+                }
                 
                 document.getElementById('input-text').value = '';
                 images = [];
@@ -329,6 +397,7 @@
                 switchView('home');
             } catch (e) {
                 console.error(e);
+                showError(e.message || "Failed to connect to AI Hub.");
             } finally {
                 document.getElementById('loader').classList.add('hidden');
             }
@@ -353,7 +422,7 @@
         window.saveGrade = saveGrade;
         window.showSetup = showSetup;
         window.openItem = openItem;
-        window.signOutApp = () => signOut(auth).then(() => location.reload());
+        window.signOutApp = () => auth ? signOut(auth).then(() => location.reload()) : location.reload();
     </script>
 </body>
 </html>
